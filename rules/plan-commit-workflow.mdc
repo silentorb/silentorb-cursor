@@ -1,0 +1,100 @@
+---
+description: Include per-repo commit strategy in every Cursor plan; full-suite verify before await-commit; defer commits until the user explicitly requests
+alwaysApply: true
+---
+
+# Plan commit workflow (Cursor-specific)
+
+Personal flow optimization — not project documentation. Do not add this workflow to `AGENTS.md` or feature docs.
+
+Language- and tooling-agnostic: keep this rule at the process layer (git repos, verify matrix, CI workflows, commit await). Concrete verify commands and language tooling belong in the project’s verify matrix or overlay rules, not here.
+
+## When creating or updating a plan
+
+### 1. Baseline snapshot
+
+Identify each **git repository** that may be affected (workspace root, nested repos, sibling repos mounted in the same environment). In each, run read-only git commands and record results in a **Commit strategy** section:
+
+Commands per repo: `git status --short`, `git diff`, `git diff --staged` (if staged), `git log -3 --oneline`.
+
+Note whether each repo is **clean** or **dirty**, and list any pre-existing dirty paths.
+
+### 2. Classify dirty files
+
+Label each changed path:
+
+- **Pre-existing** — dirty before this plan
+- **Plan-scoped** — will change during implementation
+- **Unrelated** — out of scope; exclude from plan commits
+
+**Default: greedy include.** In each affected repo, include **all pre-existing dirty files** in that repo’s planned commit unless they are clearly unrelated to the work or look like secrets. Prefer bundling prior local residue with the plan commit over leaving it uncommitted. Ask only when something is clearly unrelated or sensitive — do not default to “exclude.”
+
+### 3. Per-repo commit plan
+
+Default: **one commit per affected repo** (not one squashed commit across repos).
+
+For each affected repo specify: repo path (or name), files to include, files to exclude, draft commit message (1–2 sentences, why not what; match recent `git log` style).
+
+### 4. Final todos (verification then commit await)
+
+Add frontmatter todo `verify-full-suites` immediately before `commit-await-approval` (commit await remains **last**):
+
+> Full-suite verification — After implementation, run full verify for every plan-affected repo and its direct dependents (see the project’s verify matrix, typically `AGENTS.md`). Fix failures or get an explicit user waiver before await-commit. Reason about CI; never defer suite confidence to a future CI run.
+
+> Commit (await user approval) — After full-suite verification for affected + dependents (incl. CI considered), re-run git status/diff per repo, reconcile with this strategy, commit only when the user explicitly requests it.
+
+Keep both `pending` during planning and implementation unless the user asks to commit.
+
+### 5. Commit strategy section template
+
+```markdown
+## Commit strategy
+
+### Baseline (plan created)
+- <repo-path-or-name>: clean | dirty — list pre-existing files
+- <repo-path-or-name>: …
+
+### Intended commits
+#### <repo-path-or-name>
+- Include: …
+- Exclude: …
+- Draft message: "…"
+
+### User trigger
+Say **commit** (or **commit per the plan**) after review.
+```
+
+## Full-suite verification (plan completion gate)
+
+Surgical / scoped checks are fine **while iterating**. Plan completion is gated on full verify.
+
+**Before `commit-await-approval`:**
+
+1. Build the **verify set**: union of plan-affected repos (Commit strategy / actual edits) + each repo’s **direct dependents** from the project’s verify matrix (typically `AGENTS.md`). Deduplicate. Skip repos that are not available in the environment.
+2. Run each repo’s **full verify** command from that matrix (not surgical subsets). Commands come from the project matrix, whatever stack that is.
+3. Fix failures before await-commit, or get an explicit user waiver. Do **not** stop on `commit-await-approval` with failing gates.
+4. **CI dependent:** always reason about each affected repo’s CI workflows (e.g. GitHub Actions). If the change set touches CI inputs (containers, test scripts, deploy contracts, project verify/CI entrypoints), include the relevant workflow files (and related docs) in plan scope — read them, update if commands/paths drift. Never treat “CI will catch it after push/tag” as verification. Agents do not push tags as part of ordinary plan completion.
+
+Do not duplicate long command matrices here — they live in the project’s verify docs.
+
+## After plan implementation (before awaiting commit)
+
+When implementation and **full-suite verification** finish — and **before** stopping on `commit-await-approval` — print a short **post-implementation summary** that includes:
+
+1. **Commit scope refresh** — re-run `git status --short` per affected repo; note drift from the plan’s include/exclude list (do not commit yet).
+2. **Suite gate** — commands run and pass/fail per repo in the verify set, plus one-line **CI impact** (workflows considered; unchanged / updated / N/A).
+
+Do **not** print release/version bump previews as part of this summary. If the project has a separate bump workflow, follow that rule when the user asks for preview or bump.
+
+## Commit execution
+
+Only when the user explicitly says "commit" / "go ahead and commit" / "commit per the plan":
+
+1. Re-snapshot git state in each affected repo.
+2. Compare to the plan; if scope differs materially, pause and confirm.
+3. Follow the user's `committing-changes-with-git` rule: status + diff + log in parallel, stage only planned files, HEREDOC message, verify after.
+4. Repeat per affected repo. Never force-push or amend unless user rules allow.
+
+**Do not** run project version-bump / release tooling, refresh dependency lockfiles for versioning, bump release versions, or create git tags on plain **commit**. Defer those to the project’s bump rule when present.
+
+Do **not** auto-commit when implementation finishes.

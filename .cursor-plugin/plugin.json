@@ -1,0 +1,11 @@
+{
+  "name": "silentorb-cursor",
+  "displayName": "Silent Orb Cursor",
+  "version": "0.1.0",
+  "description": "Shared Cursor agent rules for Silent Orb projects (rules only).",
+  "author": {
+    "name": "Silent Orb"
+  },
+  "license": "MIT",
+  "keywords": ["rules", "plan", "commit", "agent"]
+}
