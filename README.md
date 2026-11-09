@@ -14,16 +14,27 @@ Version bump / preview-bump workflows stay in each consuming project’s `.curso
 
 ## Enable locally
 
-Mounting this repo under a workbench `.mnt/` path does **not** load the plugin by itself.
+### silentorb-workbench (Dev Container)
 
-On the machine that runs Cursor, link or copy this repo into the local plugins directory, then enable it in Cursor (Plugins):
+When this repo is mounted as `.mnt/silentorb-cursor`, the workbench installs a **copy** into the container’s Cursor local-plugins directory on start/attach:
+
+`~/.cursor/plugins/local/silentorb-cursor`
+
+That path is what remote/Dev Container sessions load. A copy under the Windows host `%USERPROFILE%\.cursor\plugins\local` does **not** replace it while you are attached to the container.
+
+After attach (or after running `bash scripts/install-silentorb-cursor-plugin.sh` from the workbench), reload the window if needed, then check **Customize → Plugins** for **silentorb-cursor**.
+
+### Other environments
+
+Copy this repo into the Cursor profile that matches how you opened the window (local vs remote):
 
 ```bash
 mkdir -p ~/.cursor/plugins/local
-ln -sfn /path/to/silentorb-cursor ~/.cursor/plugins/local/silentorb-cursor
+rm -rf ~/.cursor/plugins/local/silentorb-cursor
+cp -R /path/to/silentorb-cursor ~/.cursor/plugins/local/silentorb-cursor
 ```
 
-Reload the window if the plugin does not appear immediately.
+Prefer a real copy over a symlink to a path outside `plugins/local` — Cursor often skips those. Reload the window afterward.
 
 ## License
 
